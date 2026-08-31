@@ -165,6 +165,23 @@ export async function processImage(
 }
 
 /**
+ * Converts any string (with Vietnamese accents, spaces, special chars) into a clean URL/filename-friendly slug.
+ * Example: "Ảnh gốc đẹp" -> "anh-goc-dep"
+ */
+export function slugifyFileName(str: string): string {
+  if (!str || !str.trim()) return "image-clean";
+  return str
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "") // remove diacritics
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, "-") // replace non-alphanumeric chars with -
+    .replace(/^-+|-+$/g, ""); // trim leading/trailing dashes
+}
+
+/**
  * Format bytes to human readable format (KB, MB)
  */
 export function formatBytes(bytes: number, decimals: number = 2): string {

@@ -11,6 +11,7 @@ import {
   Maximize2,
   Crop,
   Shield,
+  FileEdit,
 } from "lucide-react";
 import { AspectRatioType } from "./CropPresets";
 import { BeforeAfterSlider } from "./BeforeAfterSlider";
@@ -19,6 +20,7 @@ import { ResizeModal } from "./ResizeModal";
 import {
   processImage,
   formatBytes,
+  slugifyFileName,
   ExportFormat,
   ProcessResult,
 } from "@/lib/imageEngine";
@@ -26,6 +28,7 @@ import {
 export function ImageStudio() {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
   const [originalFile, setOriginalFile] = useState<{ name: string; size: number; width: number; height: number } | null>(null);
+  const [customFileName, setCustomFileName] = useState<string>("");
   
   // Crop state
   const [croppedAreaPixels, setCroppedAreaPixels] = useState<Area | null>(null);
@@ -62,12 +65,14 @@ export function ImageStudio() {
       const img = new Image();
       img.onload = () => {
         setImageSrc(result);
+        const nameWithoutExt = file.name.replace(/\.[^/.]+$/, "");
         setOriginalFile({
           name: file.name,
           size: file.size,
           width: img.naturalWidth,
           height: img.naturalHeight,
         });
+        setCustomFileName(nameWithoutExt);
         setTargetWidth(img.naturalWidth);
         setTargetHeight(img.naturalHeight);
         setCroppedAreaPixels(null);
@@ -136,22 +141,30 @@ export function ImageStudio() {
     }
   };
 
+  // Get current extension string
+  const getExtension = (format: ExportFormat) => {
+    if (format === "image/avif") return "avif";
+    if (format === "image/png") return "png";
+    if (format === "image/jpeg") return "jpg";
+    return "webp";
+  };
+
   const handleDownload = () => {
     if (!processedResult) return;
     const a = document.createElement("a");
     a.href = processedResult.dataUrl;
 
-    const baseName = originalFile?.name.replace(/\.[^/.]+$/, "") || "image";
-    let ext = "webp";
-    if (processedResult.format === "image/avif") ext = "avif";
-    else if (processedResult.format === "image/png") ext = "png";
-    else if (processedResult.format === "image/jpeg") ext = "jpg";
+    const slugName = slugifyFileName(customFileName || originalFile?.name.replace(/\.[^/.]+$/, "") || "image");
+    const ext = getExtension(processedResult.format);
 
-    a.download = `${baseName}_clean.${ext}`;
+    a.download = `${slugName}.${ext}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   };
+
+  const currentExt = getExtension(exportFormat);
+  const previewCleanName = `${slugifyFileName(customFileName || "image")}.${currentExt}`;
 
   return (
     <div className="space-y-4">
@@ -348,6 +361,27 @@ export function ImageStudio() {
                 </div>
               )}
 
+              {/* Custom File Name Input */}
+              <div className="pt-2 border-t border-zinc-100 space-y-1">
+                <label className="flex items-center gap-1 text-xs font-medium text-zinc-700">
+                  <FileEdit className="h-3 w-3 text-zinc-500" />
+                  <span>Tên file tải về:</span>
+                </label>
+                <div className="flex items-center gap-1">
+                  <input
+                    type="text"
+                    value={customFileName}
+                    onChange={(e) => setCustomFileName(e.target.value)}
+                    placeholder="Nhập tên file (VD: Ảnh gốc đẹp)..."
+                    className="w-full text-xs font-mono px-2.5 py-1.5 rounded-md border border-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-900"
+                  />
+                  <span className="text-xs font-mono text-zinc-400 shrink-0">.{currentExt}</span>
+                </div>
+                <p className="text-[10px] text-zinc-400 truncate">
+                  Tên file thực tế: <strong className="font-mono text-zinc-600">{previewCleanName}</strong>
+                </p>
+              </div>
+
               {/* AI Watermark & Hygiene toggles */}
               <div className="pt-2 border-t border-zinc-100 space-y-1.5 text-xs">
                 <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
@@ -401,7 +435,7 @@ export function ImageStudio() {
                     className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white rounded-md font-medium text-xs transition-all shadow-xs flex items-center justify-center gap-1.5"
                   >
                     <Download className="h-3.5 w-3.5" />
-                    <span>Tải ảnh về máy</span>
+                    <span>Tải về ({previewCleanName})</span>
                   </button>
                 </div>
               )}
