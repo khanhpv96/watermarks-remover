@@ -1,41 +1,40 @@
-# Design Specification: Watermark Purifier (Pro SaaS Utility - Be Vietnam Pro)
+# Design Specification: Watermark Purifier (WordPress Ready & Pro WYSIWYG)
 
 ## 0. Design Read
-> **Reading this as:** Top-tier developer & content creator tool (Linear/Vercel caliber) with **Be Vietnam Pro** typography. Crisp borders (`border-zinc-200/80`), subtle micro-elevations (`shadow-xs`), refined neutral palettes (Zinc/Slate), sleek icon favicon, and purposeful semantic accents (Emerald-600, Amber-500, Rose-500, Sky-600).
+> **Reading this as:** High-end, executive-grade content & media publishing suite with dual Visual WYSIWYG / Source Code workflow tailored for WordPress authors, SEO editors, and digital creators. Pristine **Be Vietnam Pro** typography, rich formatted preview (H1-H6, bold, lists, quotes, tables), multi-MIME clipboard writing (`text/html` + `text/plain`), and sleek shadcn-inspired surfaces.
 
 ---
 
 ## 1. Dials
-- `DESIGN_VARIANCE: 4` (Clean, structured, highly professional layout)
-- `MOTION_INTENSITY: 3` (Fast, subtle transitions, tactile active states)
-- `VISUAL_DENSITY: 6` (High utility, compact toolbars, zero fluff)
+- `DESIGN_VARIANCE: 5` (Structured, elegant, highly usable publishing studio)
+- `MOTION_INTENSITY: 4` (Smooth transitions, tactile buttons, soft micro-interactions)
+- `VISUAL_DENSITY: 5` (Balanced workspace, spacious visual preview, crisp toolbars)
 
 ---
 
 ## 2. Typography & Tokens
 - **Font Sans**: `Be Vietnam Pro`, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif
 - **Font Mono**: `JetBrains Mono`, `ui-monospace`, `SFMono-Regular`, monospace
-- **Hierarchy**:
-  - Logo: `text-sm font-bold tracking-tight text-zinc-950`
-  - Section Headings: `text-xs font-semibold uppercase tracking-wider text-zinc-600`
-  - Inputs & Buttons: `text-xs font-medium`
-  - Data & Metrics: `font-mono text-xs`
+- **Hierarchy & Article Formatting**:
+  - H1: `text-2xl font-bold text-zinc-950 mt-4 mb-2 tracking-tight`
+  - H2: `text-xl font-bold text-zinc-900 mt-3 mb-2 tracking-tight`
+  - H3: `text-lg font-semibold text-zinc-900 mt-2 mb-1`
+  - Paragraphs: `text-sm text-zinc-700 leading-relaxed my-2`
+  - Bold / Strong: `font-bold text-zinc-950`
+  - Blockquotes: `border-l-4 border-zinc-300 pl-3 italic text-zinc-600 my-2`
+  - Code / Pre: `bg-zinc-100 px-1 py-0.5 rounded text-xs font-mono text-zinc-800`
 
 ---
 
 ## 3. Surface & Color System
-- **App Background**: `#fafafa` (zinc-50)
-- **Cards & Surfaces**: `#ffffff` (white) with `border-zinc-200/80` and `shadow-[0_1px_3px_rgba(0,0,0,0.04)]`
-- **Primary CTA**: `#18181b` (zinc-900) hover `#27272a` (zinc-800) text `#ffffff`
-- **Success Action (Download/Safe)**: `#16a34a` (emerald-600) hover `#15803d` (emerald-700)
-- **Badges**:
-  - Zero-width & Hidden: `bg-rose-50 text-rose-700 border-rose-200`
-  - Dashes & Hyphens: `bg-amber-50 text-amber-700 border-amber-200`
-  - Quotes: `bg-sky-50 text-sky-700 border-sky-200`
-  - Ellipsis: `bg-indigo-50 text-indigo-700 border-indigo-200`
-  - Fullwidth: `bg-teal-50 text-teal-700 border-teal-200`
+- **App Root Background**: `#f8fafc` (slate-50) / `#fafafa` (zinc-50)
+- **Editor Workspace**: `#ffffff` with crisp `border-zinc-200` and `shadow-[0_2px_8px_rgba(0,0,0,0.04)]`
+- **Active Navigation Pill**: `#18181b` (zinc-900) text `#ffffff` with subtle inner glow
+- **Clipboard Action**: Multi-MIME Smart Copy button (`text/html` + `text/plain`) with emerald success feedback.
 
 ---
 
-## 4. Brand & Favicon
-- **Icon**: Shield with central clean Sparkles / Purifier glyph in monochrome zinc-900 / emerald-500 accent.
+## 4. WordPress Multi-MIME Clipboard Engine
+- **Copy Mechanism**: Writes both rich `text/html` and raw `text/plain` simultaneously using `navigator.clipboard.write([new ClipboardItem(...)])`.
+  - Pasting into WordPress **Tab Visual (Gutenberg / TinyMCE)** reads `text/html` (keeps all headings, bold, links, lists).
+  - Pasting into WordPress **Tab Code (HTML source)** reads `text/plain` (pastes clean HTML markup).
