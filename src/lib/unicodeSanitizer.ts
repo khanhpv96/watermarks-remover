@@ -1,6 +1,7 @@
 /**
- * Layer A: Invisible Unicode, Steganography & AI Provenance Character Sanitizer
- * Ported and optimized from Python text_unicode.py to TypeScript.
+ * Layer A: Invisible Unicode, AI Steganography & AI Typography Sanitizer
+ * Handles Zero-width characters, Homoglyphs, Bidi controls, En-dashes/Em-dashes,
+ * Typographic quotes, Ellipsis, and Fullwidth stretched characters.
  */
 
 // Invisible and format control characters commonly used for LLM watermarking or steganography
@@ -86,6 +87,38 @@ export const SPACE_HOMOGLYPHS: ReadonlyMap<number, string> = new Map([
   [0x3000, " "], // ideographic space
 ]);
 
+// AI Dashes and long hyphens (En-dash, Em-dash, Minus, etc.) mapped to standard hyphen '-' (U+002D)
+export const DASH_HOMOGLYPHS: ReadonlyMap<number, string> = new Map([
+  [0x2013, "-"], // En-dash (–)
+  [0x2014, "-"], // Em-dash (—)
+  [0x2012, "-"], // Figure dash (‒)
+  [0x2015, "-"], // Horizontal bar (―)
+  [0x2212, "-"], // Minus sign (−)
+  [0x2010, "-"], // Hyphen (‐)
+  [0x2011, "-"], // Non-breaking hyphen (‑)
+  [0xfe63, "-"], // Small hyphen-minus (﹣)
+  [0xff0d, "-"], // Fullwidth hyphen-minus (－)
+]);
+
+// Typographic / Curly quotes mapped to standard ASCII straight quotes
+export const QUOTE_HOMOGLYPHS: ReadonlyMap<number, string> = new Map([
+  [0x201c, '"'], // Left double quotation mark (“)
+  [0x201d, '"'], // Right double quotation mark (”)
+  [0x201e, '"'], // Double low-9 quotation mark („)
+  [0x201f, '"'], // Double high-reversed-9 quotation mark (‟)
+  [0x2018, "'"], // Left single quotation mark (‘)
+  [0x2019, "'"], // Right single quotation mark (’)
+  [0x201a, "'"], // Single low-9 quotation mark (‚)
+  [0x201b, "'"], // Single high-reversed-9 quotation mark (‛)
+  [0x00ab, '"'], // Left-pointing double angle quotation mark («)
+  [0x00bb, '"'], // Right-pointing double angle quotation mark (»)
+  [0x2039, "'"], // Single left-pointing angle quotation mark (‹)
+  [0x203a, "'"], // Single right-pointing angle quotation mark (›)
+]);
+
+// Ellipsis codepoint
+export const ELLIPSIS_CODEPOINT = 0x2026; // Horizontal ellipsis (…)
+
 // Confusable Latin lookalikes commonly inserted to evade plagiarism or watermark detection
 export const LATIN_CONFUSABLES: ReadonlyMap<number, string> = new Map([
   [0x0410, "A"], // Cyrillic A
@@ -114,12 +147,22 @@ export const LATIN_CONFUSABLES: ReadonlyMap<number, string> = new Map([
   [0xff25, "E"],
 ]);
 
+export type FindingCategory =
+  | "invisible"
+  | "space_homoglyph"
+  | "dash_homoglyph"
+  | "quote_homoglyph"
+  | "ellipsis"
+  | "fullwidth_char"
+  | "latin_confusable"
+  | "bidi_control";
+
 export interface Finding {
   index: number;
   codepoint: number;
   hex: string;
   charName: string;
-  category: "invisible" | "space_homoglyph" | "latin_confusable" | "bidi_control";
+  category: FindingCategory;
   originalChar: string;
   suggestedReplacement: string;
 }
@@ -129,6 +172,10 @@ export interface InspectionReport {
   totalWords: number;
   invisibleCount: number;
   spaceHomoglyphCount: number;
+  dashCount: number;
+  quoteCount: number;
+  ellipsisCount: number;
+  fullwidthCount: number;
   confusableCount: number;
   bidiCount: number;
   findings: Finding[];
@@ -144,8 +191,21 @@ export interface TextSegment {
 export interface CleanOptions {
   stripInvisibles?: boolean;
   normalizeSpaces?: boolean;
+  normalizeDashes?: boolean;
+  normalizeQuotes?: boolean;
+  normalizeEllipsis?: boolean;
+  normalizeFullwidth?: boolean;
   replaceConfusables?: boolean;
   nfkcNormalize?: boolean;
+}
+
+export function isFullwidth(cp: number): boolean {
+  return cp >= 0xff01 && cp <= 0xff5e && !DASH_HOMOGLYPHS.has(cp);
+}
+
+export function getFullwidthReplacement(cp: number): string {
+  // Convert Fullwidth ASCII variants (0xFF01 - 0xFF5E) to standard ASCII (0x0021 - 0x007E)
+  return String.fromCodePoint(cp - 0xfee0);
 }
 
 export function getCharName(cp: number): string {
@@ -157,17 +217,27 @@ export function getCharName(cp: number): string {
     case 0x2060: return "Word Joiner (WJ)";
     case 0x00ad: return "Soft Hyphen";
     case 0x00a0: return "Non-Breaking Space (NBSP)";
-    case 0x2003: return "Em Space";
-    case 0x2002: return "En Space";
-    case 0x2009: return "Thin Space";
+    case 0x2003: return "Em Space (Khoảng trắng rộng)";
+    case 0x2002: return "En Space (Khoảng trắng vừa)";
+    case 0x2009: return "Thin Space (Khoảng trắng hẹp)";
     case 0x200a: return "Hair Space";
     case 0x202f: return "Narrow No-Break Space";
-    case 0x3000: return "Ideographic Space";
+    case 0x3000: return "Ideographic Space (Khoảng trắng CJK)";
+    case 0x2013: return "En-dash (Dấu gạch ngang –)";
+    case 0x2014: return "Em-dash (Dấu gạch ngang dài —)";
+    case 0x2212: return "Minus sign (Dấu trừ −)";
+    case 0x2015: return "Horizontal bar (Thanh ngang ―)";
+    case 0x201c: return "Left Double Quote (“)";
+    case 0x201d: return "Right Double Quote (”)";
+    case 0x2018: return "Left Single Quote (‘)";
+    case 0x2019: return "Right Single Quote (’)";
+    case 0x2026: return "Ellipsis (Dấu ba chấm …)";
     case 0x202e: return "Right-to-Left Override (RLO)";
     case 0x202d: return "Left-to-Right Override (LRO)";
     default:
       if (cp >= 0xfe00 && cp <= 0xfe0f) return `Variation Selector-${cp - 0xfe00 + 1}`;
       if (cp >= 0x2066 && cp <= 0x2069) return "Bidi Isolate Control";
+      if (isFullwidth(cp)) return `Fullwidth Char (${String.fromCodePoint(cp)})`;
       if (LATIN_CONFUSABLES.has(cp)) return `Homoglyph Lookalike (${LATIN_CONFUSABLES.get(cp)})`;
       return `U+${cp.toString(16).toUpperCase().padStart(4, "0")}`;
   }
@@ -177,6 +247,10 @@ export function inspectText(text: string): InspectionReport {
   const findings: Finding[] = [];
   let invisibleCount = 0;
   let spaceHomoglyphCount = 0;
+  let dashCount = 0;
+  let quoteCount = 0;
+  let ellipsisCount = 0;
+  let fullwidthCount = 0;
   let confusableCount = 0;
   let bidiCount = 0;
 
@@ -214,6 +288,50 @@ export function inspectText(text: string): InspectionReport {
         originalChar,
         suggestedReplacement: " ",
       });
+    } else if (DASH_HOMOGLYPHS.has(cp)) {
+      dashCount++;
+      findings.push({
+        index: i,
+        codepoint: cp,
+        hex,
+        charName: getCharName(cp),
+        category: "dash_homoglyph",
+        originalChar,
+        suggestedReplacement: DASH_HOMOGLYPHS.get(cp) || "-",
+      });
+    } else if (QUOTE_HOMOGLYPHS.has(cp)) {
+      quoteCount++;
+      findings.push({
+        index: i,
+        codepoint: cp,
+        hex,
+        charName: getCharName(cp),
+        category: "quote_homoglyph",
+        originalChar,
+        suggestedReplacement: QUOTE_HOMOGLYPHS.get(cp) || '"',
+      });
+    } else if (cp === ELLIPSIS_CODEPOINT) {
+      ellipsisCount++;
+      findings.push({
+        index: i,
+        codepoint: cp,
+        hex,
+        charName: getCharName(cp),
+        category: "ellipsis",
+        originalChar,
+        suggestedReplacement: "...",
+      });
+    } else if (isFullwidth(cp)) {
+      fullwidthCount++;
+      findings.push({
+        index: i,
+        codepoint: cp,
+        hex,
+        charName: getCharName(cp),
+        category: "fullwidth_char",
+        originalChar,
+        suggestedReplacement: getFullwidthReplacement(cp),
+      });
     } else if (LATIN_CONFUSABLES.has(cp)) {
       confusableCount++;
       findings.push({
@@ -239,6 +357,10 @@ export function inspectText(text: string): InspectionReport {
     totalWords: words.length,
     invisibleCount,
     spaceHomoglyphCount,
+    dashCount,
+    quoteCount,
+    ellipsisCount,
+    fullwidthCount,
     confusableCount,
     bidiCount,
     findings,
@@ -300,6 +422,78 @@ export function segmentTextWithFindings(text: string): TextSegment[] {
           suggestedReplacement: " ",
         },
       });
+    } else if (DASH_HOMOGLYPHS.has(cp)) {
+      if (buffer) {
+        segments.push({ type: "text", content: buffer });
+        buffer = "";
+      }
+      segments.push({
+        type: "finding",
+        content: originalChar,
+        finding: {
+          index: i,
+          codepoint: cp,
+          hex,
+          charName: getCharName(cp),
+          category: "dash_homoglyph",
+          originalChar,
+          suggestedReplacement: DASH_HOMOGLYPHS.get(cp) || "-",
+        },
+      });
+    } else if (QUOTE_HOMOGLYPHS.has(cp)) {
+      if (buffer) {
+        segments.push({ type: "text", content: buffer });
+        buffer = "";
+      }
+      segments.push({
+        type: "finding",
+        content: originalChar,
+        finding: {
+          index: i,
+          codepoint: cp,
+          hex,
+          charName: getCharName(cp),
+          category: "quote_homoglyph",
+          originalChar,
+          suggestedReplacement: QUOTE_HOMOGLYPHS.get(cp) || '"',
+        },
+      });
+    } else if (cp === ELLIPSIS_CODEPOINT) {
+      if (buffer) {
+        segments.push({ type: "text", content: buffer });
+        buffer = "";
+      }
+      segments.push({
+        type: "finding",
+        content: originalChar,
+        finding: {
+          index: i,
+          codepoint: cp,
+          hex,
+          charName: getCharName(cp),
+          category: "ellipsis",
+          originalChar,
+          suggestedReplacement: "...",
+        },
+      });
+    } else if (isFullwidth(cp)) {
+      if (buffer) {
+        segments.push({ type: "text", content: buffer });
+        buffer = "";
+      }
+      segments.push({
+        type: "finding",
+        content: originalChar,
+        finding: {
+          index: i,
+          codepoint: cp,
+          hex,
+          charName: getCharName(cp),
+          category: "fullwidth_char",
+          originalChar,
+          suggestedReplacement: getFullwidthReplacement(cp),
+        },
+      });
     } else if (LATIN_CONFUSABLES.has(cp)) {
       if (buffer) {
         segments.push({ type: "text", content: buffer });
@@ -339,6 +533,10 @@ export function cleanText(
   options: CleanOptions = {
     stripInvisibles: true,
     normalizeSpaces: true,
+    normalizeDashes: true,
+    normalizeQuotes: true,
+    normalizeEllipsis: true,
+    normalizeFullwidth: true,
     replaceConfusables: true,
     nfkcNormalize: true,
   }
@@ -350,12 +548,24 @@ export function cleanText(
     const cp = text.codePointAt(i);
     if (cp === undefined) continue;
 
-    if (options.stripInvisibles && STRIP_CODEPOINTS.has(cp)) {
+    if (options.stripInvisibles !== false && STRIP_CODEPOINTS.has(cp)) {
       removedCount++;
-    } else if (options.normalizeSpaces && SPACE_HOMOGLYPHS.has(cp)) {
+    } else if (options.normalizeSpaces !== false && SPACE_HOMOGLYPHS.has(cp)) {
       result += SPACE_HOMOGLYPHS.get(cp);
       removedCount++;
-    } else if (options.replaceConfusables && LATIN_CONFUSABLES.has(cp)) {
+    } else if (options.normalizeDashes !== false && DASH_HOMOGLYPHS.has(cp)) {
+      result += DASH_HOMOGLYPHS.get(cp);
+      removedCount++;
+    } else if (options.normalizeQuotes !== false && QUOTE_HOMOGLYPHS.has(cp)) {
+      result += QUOTE_HOMOGLYPHS.get(cp);
+      removedCount++;
+    } else if (options.normalizeEllipsis !== false && cp === ELLIPSIS_CODEPOINT) {
+      result += "...";
+      removedCount++;
+    } else if (options.normalizeFullwidth !== false && isFullwidth(cp)) {
+      result += getFullwidthReplacement(cp);
+      removedCount++;
+    } else if (options.replaceConfusables !== false && LATIN_CONFUSABLES.has(cp)) {
       result += LATIN_CONFUSABLES.get(cp);
       removedCount++;
     } else {

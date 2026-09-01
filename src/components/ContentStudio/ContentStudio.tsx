@@ -38,9 +38,13 @@ export function ContentStudio() {
   // View mode for input box: "editor" vs "visualizer"
   const [inputViewMode, setInputViewMode] = useState<"editor" | "visualizer">("editor");
 
-  // Options
+  // Cleaning options
   const [stripInvisibles, setStripInvisibles] = useState<boolean>(true);
   const [normalizeSpaces, setNormalizeSpaces] = useState<boolean>(true);
+  const [normalizeDashes, setNormalizeDashes] = useState<boolean>(true);
+  const [normalizeQuotes, setNormalizeQuotes] = useState<boolean>(true);
+  const [normalizeEllipsis, setNormalizeEllipsis] = useState<boolean>(true);
+  const [normalizeFullwidth, setNormalizeFullwidth] = useState<boolean>(true);
   const [replaceConfusables, setReplaceConfusables] = useState<boolean>(true);
   const [nfkcNormalize, setNfkcNormalize] = useState<boolean>(true);
 
@@ -58,28 +62,38 @@ export function ContentStudio() {
     return segmentTextWithFindings(inputText);
   }, [inputText]);
 
+  const cleanOptions = useMemo(() => ({
+    stripInvisibles,
+    normalizeSpaces,
+    normalizeDashes,
+    normalizeQuotes,
+    normalizeEllipsis,
+    normalizeFullwidth,
+    replaceConfusables,
+    nfkcNormalize,
+  }), [
+    stripInvisibles,
+    normalizeSpaces,
+    normalizeDashes,
+    normalizeQuotes,
+    normalizeEllipsis,
+    normalizeFullwidth,
+    replaceConfusables,
+    nfkcNormalize,
+  ]);
+
   // Clean Action
   const handleClean = useCallback(() => {
     if (!inputText) return;
-    const { cleaned } = cleanText(inputText, {
-      stripInvisibles,
-      normalizeSpaces,
-      replaceConfusables,
-      nfkcNormalize,
-    });
+    const { cleaned } = cleanText(inputText, cleanOptions);
     setOutputText(cleaned);
     setOutputFormat(inputFormat);
-  }, [inputText, stripInvisibles, normalizeSpaces, replaceConfusables, nfkcNormalize, inputFormat]);
+  }, [inputText, cleanOptions, inputFormat]);
 
   // Convert Actions
   const handleConvertToMarkdown = () => {
     if (!inputText) return;
-    const { cleaned } = cleanText(inputText, {
-      stripInvisibles,
-      normalizeSpaces,
-      replaceConfusables,
-      nfkcNormalize,
-    });
+    const { cleaned } = cleanText(inputText, cleanOptions);
     const md = inputFormat === "html" ? htmlToMarkdown(cleaned) : cleaned;
     setOutputText(md);
     setOutputFormat("markdown");
@@ -87,12 +101,7 @@ export function ContentStudio() {
 
   const handleConvertToHtml = () => {
     if (!inputText) return;
-    const { cleaned } = cleanText(inputText, {
-      stripInvisibles,
-      normalizeSpaces,
-      replaceConfusables,
-      nfkcNormalize,
-    });
+    const { cleaned } = cleanText(inputText, cleanOptions);
     const html = inputFormat === "markdown" || inputFormat === "text" ? markdownToHtml(cleaned) : cleaned;
     setOutputText(html);
     setOutputFormat("html");
@@ -124,9 +133,9 @@ export function ContentStudio() {
     document.body.removeChild(a);
   };
 
-  // Quick sample
+  // Quick sample with hidden AI characters, En-dash, Em-dash, curly quotes, and fullwidth chars
   const handleInsertSample = () => {
-    const sample = `Chào bạn\u200B, đây là văn bản thử nghiệm\u200D có ký tự ẩn\uFEFF và khoảng trắng lạ\u00A0do AI tạo ra\u2060.`;
+    const sample = `Chào bạn\u200B, công nghệ AI — một bước ngoặt lớn (2020 – 2026) với “tiềm năng đột phá”… nhưng có ký tự ẩn\uFEFF và chữ fullwidth ＡＢＣ đặc biệt\u2060.`;
     setInputText(sample);
     setInputFormat("text");
     setInputViewMode("visualizer");
@@ -196,7 +205,7 @@ export function ContentStudio() {
             onClick={handleInsertSample}
             className="px-2 py-1 rounded-md border border-dashed border-zinc-300 text-zinc-500 hover:text-zinc-900 hover:bg-zinc-50 font-medium transition-all"
           >
-            Chèn mẫu thử
+            Chèn mẫu thử AI
           </button>
         </div>
       </div>
@@ -230,7 +239,7 @@ export function ContentStudio() {
                 }`}
               >
                 <Eye className="h-3 w-3 text-rose-600" />
-                <span>Soi ký tự ẩn ({inspection.findings.length})</span>
+                <span>Soi ký tự & dấu AI ({inspection.findings.length})</span>
               </button>
             </div>
 
@@ -238,7 +247,7 @@ export function ContentStudio() {
             {inspection.findings.length > 0 ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-rose-50 border border-rose-200 text-rose-700 font-medium text-[11px]">
                 <AlertTriangle className="h-3 w-3" />
-                {inspection.findings.length} ký tự ẩn
+                {inspection.findings.length} dấu hiệu AI
               </span>
             ) : inputText ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium text-[11px]">
@@ -282,35 +291,42 @@ export function ContentStudio() {
                     }
 
                     const f = segment.finding!;
-                    const isSpace = f.category === "space_homoglyph";
-                    const isConfusable = f.category === "latin_confusable";
-                    const isBidi = f.category === "bidi_control";
-
                     let badgeColor = "bg-rose-500 text-white border-rose-600";
                     let label = f.hex;
 
-                    if (f.codepoint === 0x200b) label = "ZWSP";
+                    if (f.category === "dash_homoglyph") {
+                      badgeColor = "bg-amber-600 text-white border-amber-700";
+                      label = `DASH: ${f.originalChar}`;
+                    } else if (f.category === "quote_homoglyph") {
+                      badgeColor = "bg-sky-600 text-white border-sky-700";
+                      label = `QUOTE: ${f.originalChar}`;
+                    } else if (f.category === "ellipsis") {
+                      badgeColor = "bg-indigo-600 text-white border-indigo-700";
+                      label = "ELLIPSIS: …";
+                    } else if (f.category === "fullwidth_char") {
+                      badgeColor = "bg-teal-600 text-white border-teal-700";
+                      label = `FULLWIDTH: ${f.originalChar}`;
+                    } else if (f.category === "space_homoglyph") {
+                      badgeColor = "bg-orange-500 text-white border-orange-600";
+                      label = "SPACE";
+                    } else if (f.category === "latin_confusable") {
+                      badgeColor = "bg-blue-600 text-white border-blue-700";
+                      label = `[${f.originalChar}→${f.suggestedReplacement}]`;
+                    } else if (f.category === "bidi_control") {
+                      badgeColor = "bg-purple-600 text-white border-purple-700";
+                    } else if (f.codepoint === 0x200b) label = "ZWSP";
                     else if (f.codepoint === 0x200c) label = "ZWNJ";
                     else if (f.codepoint === 0x200d) label = "ZWJ";
                     else if (f.codepoint === 0xfeff) label = "BOM";
                     else if (f.codepoint === 0x00ad) label = "SHY";
                     else if (f.codepoint === 0x2060) label = "WJ";
-                    else if (isSpace) {
-                      badgeColor = "bg-amber-500 text-white border-amber-600";
-                      label = "SPACE";
-                    } else if (isConfusable) {
-                      badgeColor = "bg-blue-600 text-white border-blue-700";
-                      label = `[${f.originalChar}→${f.suggestedReplacement}]`;
-                    } else if (isBidi) {
-                      badgeColor = "bg-purple-600 text-white border-purple-700";
-                    }
 
                     return (
                       <span
                         key={idx}
                         onClick={() => setSelectedFinding(f)}
                         className={`inline-flex items-center gap-0.5 px-1 py-0.2 mx-0.5 rounded text-[10px] font-bold cursor-pointer transition-transform hover:scale-105 shadow-xs border ${badgeColor}`}
-                        title={`${f.charName} (${f.hex})`}
+                        title={`${f.charName} (${f.hex}) ➔ Đổi thành: '${f.suggestedReplacement || "(xóa)"}'`}
                       >
                         {label}
                       </span>
@@ -327,9 +343,9 @@ export function ContentStudio() {
           {selectedFinding && (
             <div className="p-2.5 bg-zinc-900 text-white text-xs flex items-center justify-between border-t border-zinc-800">
               <div className="flex items-center gap-2 truncate">
-                <Info className="h-3.5 w-3.5 text-rose-400 shrink-0" />
+                <Info className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                 <span className="truncate">
-                  <strong className="text-rose-300 font-mono">{selectedFinding.hex}</strong>: {selectedFinding.charName} (index {selectedFinding.index})
+                  <strong className="text-amber-300 font-mono">{selectedFinding.hex}</strong>: {selectedFinding.charName} ➔ Đổi thành: <strong className="text-emerald-400 font-mono">'{selectedFinding.suggestedReplacement || "(xóa)"}'</strong>
                 </span>
               </div>
               <button
@@ -349,7 +365,7 @@ export function ContentStudio() {
               className="w-full py-2 px-3 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.98] disabled:opacity-50 text-white rounded-md font-medium text-xs transition-all shadow-xs flex items-center justify-center gap-1.5"
             >
               <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
-              <span>Xử lý & Tẩy sạch ký tự AI</span>
+              <span>Xử lý & Chuẩn hóa Typography AI</span>
             </button>
           </div>
         </div>
@@ -392,10 +408,53 @@ export function ContentStudio() {
             />
           </div>
 
-          {/* Filter Options (Clean & Compact) */}
+          {/* Filter Options (Option B: Configurable Tiers) */}
           <div className="p-3 bg-zinc-50 border-t border-zinc-200 text-xs">
-            <div className="grid grid-cols-2 gap-2">
-              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-600 text-[11px]">
+            <span className="font-semibold text-zinc-700 block text-[11px] uppercase tracking-wider mb-2">
+              Tùy chọn chuẩn hóa Typography & Ký tự AI:
+            </span>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
+                <input
+                  type="checkbox"
+                  checked={normalizeDashes}
+                  onChange={(e) => setNormalizeDashes(e.target.checked)}
+                  className="rounded text-zinc-900 accent-zinc-900"
+                />
+                <span>Dấu gạch ngang (–, — ➔ -)</span>
+              </label>
+
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
+                <input
+                  type="checkbox"
+                  checked={normalizeQuotes}
+                  onChange={(e) => setNormalizeQuotes(e.target.checked)}
+                  className="rounded text-zinc-900 accent-zinc-900"
+                />
+                <span>Dấu ngoặc kép (“ ” ➔ &quot; &quot;)</span>
+              </label>
+
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
+                <input
+                  type="checkbox"
+                  checked={normalizeEllipsis}
+                  onChange={(e) => setNormalizeEllipsis(e.target.checked)}
+                  className="rounded text-zinc-900 accent-zinc-900"
+                />
+                <span>Dấu ba chấm (… ➔ ...)</span>
+              </label>
+
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
+                <input
+                  type="checkbox"
+                  checked={normalizeFullwidth}
+                  onChange={(e) => setNormalizeFullwidth(e.target.checked)}
+                  className="rounded text-zinc-900 accent-zinc-900"
+                />
+                <span>Thu hẹp chữ dãn (Ａ ➔ A)</span>
+              </label>
+
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
                 <input
                   type="checkbox"
                   checked={stripInvisibles}
@@ -405,7 +464,7 @@ export function ContentStudio() {
                 <span>Xóa ký tự ẩn (ZWSP, BOM, Bidi)</span>
               </label>
 
-              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-600 text-[11px]">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
                 <input
                   type="checkbox"
                   checked={normalizeSpaces}
@@ -415,17 +474,17 @@ export function ContentStudio() {
                 <span>Chuẩn hóa khoảng trắng lạ</span>
               </label>
 
-              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-600 text-[11px]">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
                 <input
                   type="checkbox"
                   checked={replaceConfusables}
                   onChange={(e) => setReplaceConfusables(e.target.checked)}
                   className="rounded text-zinc-900 accent-zinc-900"
                 />
-                <span>Thay thế Homoglyph</span>
+                <span>Thay thế Homoglyph Cyrillic</span>
               </label>
 
-              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-600 text-[11px]">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
                 <input
                   type="checkbox"
                   checked={nfkcNormalize}
