@@ -1,42 +1,41 @@
-# Design Specification: Watermark Purifier (Be Vietnam Pro - Minimalist Clean Theme)
+# Design Specification: Watermark Purifier (Pro SaaS Utility - Be Vietnam Pro)
 
 ## 0. Design Read
-> **Reading this as:** Ultra-sleek, minimalist utility tool for Vietnamese content creators & developers with **Be Vietnam Pro** typography. Zero marketing noise, high functional clarity, compact controls, and crisp shadcn-style surfaces.
+> **Reading this as:** Top-tier developer & content creator tool (Linear/Vercel caliber) with **Be Vietnam Pro** typography. Crisp borders (`border-zinc-200/80`), subtle micro-elevations (`shadow-xs`), refined neutral palettes (Zinc/Slate), sleek icon favicon, and purposeful semantic accents (Emerald-600, Amber-500, Rose-500, Sky-600).
 
 ---
 
 ## 1. Dials
-- `DESIGN_VARIANCE: 4` (Structured, clean, focused utility interface)
+- `DESIGN_VARIANCE: 4` (Clean, structured, highly professional layout)
 - `MOTION_INTENSITY: 3` (Fast, subtle transitions, tactile active states)
-- `VISUAL_DENSITY: 6` (High productivity, compact toolbars, zero fluff)
+- `VISUAL_DENSITY: 6` (High utility, compact toolbars, zero fluff)
 
 ---
 
-## 2. Typography
-- **Primary Sans**: `Be Vietnam Pro`, system-ui, -apple-system, sans-serif
-- **Font Mono**: `ui-monospace`, `SFMono-Regular`, `Menlo`, `Monaco`, monospace
+## 2. Typography & Tokens
+- **Font Sans**: `Be Vietnam Pro`, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif
+- **Font Mono**: `JetBrains Mono`, `ui-monospace`, `SFMono-Regular`, monospace
 - **Hierarchy**:
-  - App Title: `font-bold text-base sm:text-lg tracking-tight`
-  - Section Headers: `font-semibold text-xs sm:text-sm text-zinc-900`
-  - UI Labels & Buttons: `font-medium text-xs`
-  - Body / Data: `text-xs text-zinc-600`
+  - Logo: `text-sm font-bold tracking-tight text-zinc-950`
+  - Section Headings: `text-xs font-semibold uppercase tracking-wider text-zinc-600`
+  - Inputs & Buttons: `text-xs font-medium`
+  - Data & Metrics: `font-mono text-xs`
 
 ---
 
-## 3. Color Tokens (Shadcn Light Clean)
-- **Background**: `#fafafa` (zinc-50) / `#ffffff` (white)
-- **Surface / Card**: `#ffffff` with border `#e4e4e7` (zinc-200)
-- **Primary Text**: `#09090b` (zinc-950)
-- **Muted Text**: `#71717a` (zinc-500)
-- **Border**: `#e4e4e7` (zinc-200) / `#f4f4f5` (zinc-100)
-- **Primary Button**: `#18181b` (zinc-900) text `#ffffff`
-- **Warning Badge**: `#ef4444` (rose-500) / `#fef2f2` (rose-50)
-- **Success Badge**: `#10b981` (emerald-500) / `#f0fdf4` (emerald-50)
+## 3. Surface & Color System
+- **App Background**: `#fafafa` (zinc-50)
+- **Cards & Surfaces**: `#ffffff` (white) with `border-zinc-200/80` and `shadow-[0_1px_3px_rgba(0,0,0,0.04)]`
+- **Primary CTA**: `#18181b` (zinc-900) hover `#27272a` (zinc-800) text `#ffffff`
+- **Success Action (Download/Safe)**: `#16a34a` (emerald-600) hover `#15803d` (emerald-700)
+- **Badges**:
+  - Zero-width & Hidden: `bg-rose-50 text-rose-700 border-rose-200`
+  - Dashes & Hyphens: `bg-amber-50 text-amber-700 border-amber-200`
+  - Quotes: `bg-sky-50 text-sky-700 border-sky-200`
+  - Ellipsis: `bg-indigo-50 text-indigo-700 border-indigo-200`
+  - Fullwidth: `bg-teal-50 text-teal-700 border-teal-200`
 
 ---
 
-## 4. Decluttering & Layout Rules
-- No bulky marketing banners or feature bullet explanations.
-- Toolbars are consolidated into single horizontal bars.
-- Modals handle complex actions (Crop, Resize) to keep main canvas lightweight.
-- Text editors maximize productive vertical viewport space.
+## 4. Brand & Favicon
+- **Icon**: Shield with central clean Sparkles / Purifier glyph in monochrome zinc-900 / emerald-500 accent.

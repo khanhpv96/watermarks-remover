@@ -12,6 +12,13 @@ const beVietnamPro = Be_Vietnam_Pro({
 export const metadata: Metadata = {
   title: "Watermark & AI Provenance Purifier",
   description: "Xử lý ảnh, nén đa định dạng và làm sạch ký tự ẩn AI 100% Client-side.",
+  icons: {
+    icon: [
+      { url: "/favicon.svg", type: "image/svg+xml" },
+    ],
+    shortcut: "/favicon.svg",
+    apple: "/favicon.svg",
+  },
   robots: {
     index: false,
     follow: false,
@@ -38,6 +45,7 @@ export default function RootLayout({
   return (
     <html lang="vi" className={beVietnamPro.variable}>
       <head>
+        <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
         <meta name="robots" content="noindex, nofollow, noarchive, nosnippet, noimageindex, nocache" />
         <meta name="googlebot" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
         <meta name="bingbot" content="noindex, nofollow, noarchive, nosnippet, noimageindex" />
