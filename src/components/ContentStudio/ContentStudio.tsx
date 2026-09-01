@@ -14,10 +14,6 @@ import {
   Trash2,
   Edit3,
   Info,
-  LayoutTemplate,
-  FileCode2,
-  FileCheck2,
-  Globe,
 } from "lucide-react";
 import {
   inspectText,
@@ -32,7 +28,6 @@ import {
 } from "@/lib/formatConverter";
 
 export type ContentFormat = "text" | "markdown" | "html";
-export type ViewTabMode = "visual" | "code" | "inspector";
 
 export function ContentStudio() {
   const [inputText, setInputText] = useState<string>("");
@@ -40,9 +35,9 @@ export function ContentStudio() {
   const [outputText, setOutputText] = useState<string>("");
   const [outputFormat, setOutputFormat] = useState<ContentFormat>("html");
   
-  // View mode for input and output panels
-  const [inputViewMode, setInputViewMode] = useState<ViewTabMode>("visual");
-  const [outputViewMode, setOutputViewMode] = useState<ViewTabMode>("visual");
+  // View mode for left and right boxes: "editor" vs "preview"
+  const [inputViewMode, setInputViewMode] = useState<"editor" | "preview">("editor");
+  const [outputViewMode, setOutputViewMode] = useState<"editor" | "preview">("editor");
 
   // Cleaning options
   const [stripInvisibles, setStripInvisibles] = useState<boolean>(true);
@@ -113,8 +108,8 @@ export function ContentStudio() {
     setOutputFormat("html");
   };
 
-  // Smart Multi-MIME Copy (WordPress Visual & Code compatible)
-  const handleSmartCopy = async () => {
+  // Smart Multi-MIME Copy: Ghi đồng thời text/html và text/plain
+  const handleCopy = async () => {
     if (!outputText) return;
 
     let htmlPayload = outputText;
@@ -138,38 +133,14 @@ export function ContentStudio() {
           }),
         ]);
       } else {
-        await navigator.clipboard.writeText(htmlPayload);
+        await navigator.clipboard.writeText(outputText);
       }
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2200);
+      setTimeout(() => setIsCopied(false), 2000);
     } catch {
-      // Fallback
       await navigator.clipboard.writeText(outputText);
       setIsCopied(true);
-      setTimeout(() => setIsCopied(false), 2200);
-    }
-  };
-
-  // Handle rich paste from clipboard (e.g. from WordPress, Word, Web)
-  const handlePasteEvent = (e: React.ClipboardEvent) => {
-    const html = e.clipboardData.getData("text/html");
-    const text = e.clipboardData.getData("text/plain");
-
-    if (html && html.trim()) {
-      // Extract clean inner HTML if wrapped in full doc
-      let cleanHtml = html;
-      try {
-        const doc = new DOMParser().parseFromString(html, "text/html");
-        cleanHtml = doc.body.innerHTML;
-      } catch {
-        cleanHtml = html;
-      }
-      e.preventDefault();
-      setInputText(cleanHtml);
-      setInputFormat("html");
-      setInputViewMode("visual");
-    } else if (text) {
-      // If pure text, let normal paste proceed
+      setTimeout(() => setIsCopied(false), 2000);
     }
   };
 
@@ -181,21 +152,21 @@ export function ContentStudio() {
     const a = document.createElement("a");
     a.href = url;
     
-    let ext = "html";
+    let ext = "txt";
     if (outputFormat === "markdown") ext = "md";
-    else if (outputFormat === "text") ext = "txt";
+    else if (outputFormat === "html") ext = "html";
 
-    a.download = `wordpress_article_clean.${ext}`;
+    a.download = `content_clean.${ext}`;
     document.body.appendChild(a);
     a.click();
     document.body.removeChild(a);
   };
 
-  // Sample rich WordPress article
+  // Quick sample with HTML formatting & AI characters
   const handleInsertSample = () => {
     const sample = `<h2>1. Giới thiệu về Công nghệ AI</h2>
-<p>Chào bạn\u200B! Trí tuệ nhân tạo — một bước ngoặt lớn (2020 – 2026) đang mang lại <strong>nhiều cơ hội đột phá</strong> cho các nhà sáng tạo nội dung\u2060.</p>
-<blockquote>AI là công cụ hỗ trợ đắc lực — giúp tối ưu hóa hiệu suất làm việc của con người\uFEFF.</blockquote>
+<p>Chào bạn\u200B! Trí tuệ nhân tạo — một bước ngoặt lớn (2020 – 2026) đang mang lại <strong>nhiều cơ hội đột phá</strong> cho người viết content\u2060.</p>
+<blockquote>AI là công cụ hỗ trợ — giúp tối ưu hóa hiệu suất làm việc của con người\uFEFF.</blockquote>
 <h3>Lợi ích nổi bật:</h3>
 <ul>
   <li>Tự động hóa <em>quy trình xử lý dữ liệu</em>\u00A0nhanh chóng.</li>
@@ -204,18 +175,18 @@ export function ContentStudio() {
 </ul>`;
     setInputText(sample);
     setInputFormat("html");
-    setInputViewMode("visual");
+    setInputViewMode("preview");
   };
 
-  // Helper to render HTML safe preview
-  const renderedInputHtml = useMemo(() => {
+  // Formatted HTML for Preview
+  const inputRenderedHtml = useMemo(() => {
     if (!inputText) return "";
     if (inputFormat === "markdown") return markdownToHtml(inputText);
     if (inputFormat === "text") return `<p>${inputText.replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br/>")}</p>`;
     return inputText;
   }, [inputText, inputFormat]);
 
-  const renderedOutputHtml = useMemo(() => {
+  const outputRenderedHtml = useMemo(() => {
     if (!outputText) return "";
     if (outputFormat === "markdown") return markdownToHtml(outputText);
     if (outputFormat === "text") return `<p>${outputText.replace(/\n\n/g, "</p><p>").replace(/\n/g, "<br/>")}</p>`;
@@ -224,42 +195,40 @@ export function ContentStudio() {
 
   return (
     <div className="space-y-4">
-      {/* Top Conversion Bar */}
-      <div className="bg-white rounded-xl border border-zinc-200/90 p-3 shadow-xs flex flex-wrap items-center justify-between gap-3">
+      {/* Top Format Selector Bar */}
+      <div className="bg-white rounded-xl border border-zinc-200 p-3 shadow-xs flex flex-wrap items-center justify-between gap-3">
         <div className="flex items-center gap-2">
-          <span className="text-xs font-semibold text-zinc-700 flex items-center gap-1">
-            <Globe className="h-3.5 w-3.5 text-zinc-500" /> Định dạng bài:
-          </span>
+          <span className="text-xs font-semibold text-zinc-700">Định dạng:</span>
           <div className="flex items-center bg-zinc-100 p-0.5 rounded-lg border border-zinc-200/80 text-xs">
             <button
-              onClick={() => setInputFormat("html")}
-              className={`px-3 py-1 rounded-md transition-all font-medium ${
-                inputFormat === "html"
-                  ? "bg-white text-zinc-950 font-bold shadow-xs border border-zinc-200/60"
+              onClick={() => setInputFormat("text")}
+              className={`px-3 py-1 rounded-md transition-all ${
+                inputFormat === "text"
+                  ? "bg-white text-zinc-900 font-semibold shadow-xs"
                   : "text-zinc-600 hover:text-zinc-900"
               }`}
             >
-              HTML (WordPress)
+              Text
             </button>
             <button
               onClick={() => setInputFormat("markdown")}
-              className={`px-3 py-1 rounded-md transition-all font-medium ${
+              className={`px-3 py-1 rounded-md transition-all ${
                 inputFormat === "markdown"
-                  ? "bg-white text-zinc-950 font-bold shadow-xs border border-zinc-200/60"
+                  ? "bg-white text-zinc-900 font-semibold shadow-xs"
                   : "text-zinc-600 hover:text-zinc-900"
               }`}
             >
               Markdown
             </button>
             <button
-              onClick={() => setInputFormat("text")}
-              className={`px-3 py-1 rounded-md transition-all font-medium ${
-                inputFormat === "text"
-                  ? "bg-white text-zinc-950 font-bold shadow-xs border border-zinc-200/60"
+              onClick={() => setInputFormat("html")}
+              className={`px-3 py-1 rounded-md transition-all ${
+                inputFormat === "html"
+                  ? "bg-white text-zinc-900 font-semibold shadow-xs"
                   : "text-zinc-600 hover:text-zinc-900"
               }`}
             >
-              Văn bản thô
+              HTML
             </button>
           </div>
         </div>
@@ -269,76 +238,60 @@ export function ContentStudio() {
           <button
             onClick={handleConvertToMarkdown}
             disabled={!inputText}
-            className="px-2.5 py-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 text-zinc-700 font-medium transition-all shadow-xs flex items-center gap-1.5"
+            className="px-2.5 py-1 rounded-md border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 text-zinc-700 font-medium transition-all shadow-xs flex items-center gap-1"
           >
-            <ArrowRightLeft className="h-3.5 w-3.5 text-zinc-500" />
-            <span>Chuyển sang Markdown</span>
+            <ArrowRightLeft className="h-3 w-3 text-zinc-500" />
+            <span>Sang Markdown</span>
           </button>
 
           <button
             onClick={handleConvertToHtml}
             disabled={!inputText}
-            className="px-2.5 py-1.5 rounded-lg border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 text-zinc-700 font-medium transition-all shadow-xs flex items-center gap-1.5"
+            className="px-2.5 py-1 rounded-md border border-zinc-200 bg-white hover:bg-zinc-50 disabled:opacity-40 text-zinc-700 font-medium transition-all shadow-xs flex items-center gap-1"
           >
-            <Code className="h-3.5 w-3.5 text-zinc-500" />
-            <span>Chuyển sang HTML</span>
+            <Code className="h-3 w-3 text-zinc-500" />
+            <span>Sang HTML</span>
           </button>
 
           <button
             onClick={handleInsertSample}
-            className="px-3 py-1.5 rounded-lg border border-dashed border-zinc-300 text-zinc-600 hover:text-zinc-950 hover:bg-zinc-50 font-medium transition-all flex items-center gap-1"
+            className="px-2.5 py-1 rounded-md border border-dashed border-zinc-300 text-zinc-600 hover:text-zinc-900 hover:bg-zinc-50 font-medium transition-all"
           >
-            <LayoutTemplate className="h-3.5 w-3.5 text-zinc-500" />
-            <span>Chèn bài mẫu WP</span>
+            Chèn mẫu thử
           </button>
         </div>
       </div>
 
-      {/* Main Dual Editor Panels (Input & Output) */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-start">
-        {/* Left Column: Input (Visual / Code / Inspector) */}
-        <div className="bg-white rounded-xl border border-zinc-200 shadow-xs overflow-hidden flex flex-col">
-          {/* Header with Mode Switcher */}
-          <div className="p-2.5 bg-zinc-50/80 border-b border-zinc-200 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1 bg-zinc-200/70 p-0.5 rounded-lg border border-zinc-300/60">
+      {/* Main Dual Panels with Responsive Dynamic Height */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 items-stretch">
+        {/* Left Column: Input Box */}
+        <div className="bg-white rounded-xl border border-zinc-200 shadow-xs overflow-hidden flex flex-col h-full">
+          {/* Header */}
+          <div className="p-2.5 bg-zinc-50/80 border-b border-zinc-200 flex items-center justify-between text-xs shrink-0">
+            <div className="flex items-center gap-1.5 bg-zinc-200/70 p-0.5 rounded-md border border-zinc-300/60">
               <button
                 type="button"
-                onClick={() => setInputViewMode("visual")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all ${
-                  inputViewMode === "visual"
-                    ? "bg-white font-bold text-zinc-950 shadow-xs"
+                onClick={() => setInputViewMode("editor")}
+                className={`flex items-center gap-1 px-2.5 py-0.5 rounded text-xs transition-all ${
+                  inputViewMode === "editor"
+                    ? "bg-white font-semibold text-zinc-900 shadow-xs"
                     : "text-zinc-600 hover:text-zinc-900"
                 }`}
-                title="Xem định dạng bài viết trực quan (Heading, Bold, List...)"
               >
-                <Eye className="h-3.5 w-3.5 text-emerald-600" />
-                <span>Trực quan (Visual)</span>
+                <Edit3 className="h-3 w-3" />
+                <span>Nhập liệu ({inputFormat.toUpperCase()})</span>
               </button>
               <button
                 type="button"
-                onClick={() => setInputViewMode("code")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all ${
-                  inputViewMode === "code"
-                    ? "bg-white font-bold text-zinc-950 shadow-xs"
+                onClick={() => setInputViewMode("preview")}
+                className={`flex items-center gap-1 px-2.5 py-0.5 rounded text-xs transition-all ${
+                  inputViewMode === "preview"
+                    ? "bg-white font-semibold text-zinc-900 shadow-xs"
                     : "text-zinc-600 hover:text-zinc-900"
                 }`}
-                title="Xem và sửa mã HTML / Markdown thô"
               >
-                <FileCode2 className="h-3.5 w-3.5 text-zinc-600" />
-                <span>Mã nguồn (Code)</span>
-              </button>
-              <button
-                type="button"
-                onClick={() => setInputViewMode("inspector")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all ${
-                  inputViewMode === "inspector"
-                    ? "bg-white font-bold text-zinc-950 shadow-xs"
-                    : "text-zinc-600 hover:text-zinc-900"
-                }`}
-                title="Soi vị trí từng ký tự ẩn và dấu hiệu AI"
-              >
-                <AlertTriangle className="h-3.5 w-3.5 text-amber-500" />
-                <span>Soi AI ({inspection.findings.length})</span>
+                <Eye className="h-3 w-3 text-emerald-600" />
+                <span>Preview & Soi AI ({inspection.findings.length})</span>
               </button>
             </div>
 
@@ -351,7 +304,7 @@ export function ContentStudio() {
             ) : inputText ? (
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-emerald-50 border border-emerald-200 text-emerald-700 font-medium text-[11px]">
                 <ShieldCheck className="h-3 w-3" />
-                Sạch 100%
+                Sạch
               </span>
             ) : (
               <span className="text-zinc-400 text-[11px]">
@@ -360,35 +313,19 @@ export function ContentStudio() {
             )}
           </div>
 
-          {/* Main Input Display */}
-          <div className="relative">
-            {inputViewMode === "visual" ? (
-              /* Visual WYSIWYG Formatted Container */
-              <div
-                onPaste={handlePasteEvent}
-                className="w-full h-88 p-4 bg-white overflow-y-auto article-preview leading-relaxed border-0 focus:outline-none"
-              >
-                {inputText ? (
-                  <div
-                    dangerouslySetInnerHTML={{ __html: renderedInputHtml }}
-                  />
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center text-zinc-400 py-12">
-                    <LayoutTemplate className="h-10 w-10 text-zinc-300 mb-2" />
-                    <p className="text-sm font-medium text-zinc-600">Dán bài viết HTML từ WordPress hoặc website vào đây</p>
-                    <p className="text-xs text-zinc-400 mt-1">Tự động giữ nguyên cấu trúc Heading, Bold, List, Quotes...</p>
-                  </div>
-                )}
-              </div>
-            ) : inputViewMode === "code" ? (
-              /* Raw Code Editor */
+          {/* Dynamic Height Input Area */}
+          <div className="relative flex-1">
+            {inputViewMode === "editor" ? (
               <>
                 <textarea
                   value={inputText}
                   onChange={(e) => setInputText(e.target.value)}
-                  onPaste={handlePasteEvent}
-                  placeholder="Dán mã HTML hoặc Markdown tại đây..."
-                  className="w-full h-88 p-4 text-xs sm:text-sm font-mono text-zinc-900 bg-zinc-50/20 border-0 resize-none focus:outline-none placeholder:text-zinc-400 leading-relaxed"
+                  placeholder={
+                    inputFormat === "html"
+                      ? "Dán mã HTML bài viết tại đây (vd: <h2>Tiêu đề</h2><p>Nội dung <strong>in đậm</strong>...</p>)..."
+                      : "Dán hoặc nhập nội dung văn bản tại đây..."
+                  }
+                  className="w-full h-[calc(100vh-370px)] min-h-[480px] p-4 text-xs sm:text-sm font-mono text-zinc-900 bg-white border-0 resize-none focus:outline-none placeholder:text-zinc-400 leading-relaxed overflow-y-auto"
                 />
                 {inputText && (
                   <button
@@ -401,58 +338,53 @@ export function ContentStudio() {
                 )}
               </>
             ) : (
-              /* In-Text Inspector Mode */
-              <div className="w-full h-88 p-4 text-xs sm:text-sm font-mono text-zinc-900 bg-zinc-50/40 overflow-y-auto whitespace-pre-wrap break-words leading-relaxed select-text">
-                {textSegments.length > 0 ? (
-                  textSegments.map((segment, idx) => {
-                    if (segment.type === "text") {
-                      return <span key={idx}>{segment.content}</span>;
-                    }
-
-                    const f = segment.finding!;
-                    let badgeColor = "bg-rose-500 text-white border-rose-600";
-                    let label = f.hex;
-
-                    if (f.category === "dash_homoglyph") {
-                      badgeColor = "bg-amber-600 text-white border-amber-700";
-                      label = `DASH: ${f.originalChar}`;
-                    } else if (f.category === "quote_homoglyph") {
-                      badgeColor = "bg-sky-600 text-white border-sky-700";
-                      label = `QUOTE: ${f.originalChar}`;
-                    } else if (f.category === "ellipsis") {
-                      badgeColor = "bg-indigo-600 text-white border-indigo-700";
-                      label = "ELLIPSIS: …";
-                    } else if (f.category === "fullwidth_char") {
-                      badgeColor = "bg-teal-600 text-white border-teal-700";
-                      label = `FULLWIDTH: ${f.originalChar}`;
-                    } else if (f.category === "space_homoglyph") {
-                      badgeColor = "bg-orange-500 text-white border-orange-600";
-                      label = "SPACE";
-                    } else if (f.category === "latin_confusable") {
-                      badgeColor = "bg-blue-600 text-white border-blue-700";
-                      label = `[${f.originalChar}→${f.suggestedReplacement}]`;
-                    } else if (f.category === "bidi_control") {
-                      badgeColor = "bg-purple-600 text-white border-purple-700";
-                    } else if (f.codepoint === 0x200b) label = "ZWSP";
-                    else if (f.codepoint === 0x200c) label = "ZWNJ";
-                    else if (f.codepoint === 0x200d) label = "ZWJ";
-                    else if (f.codepoint === 0xfeff) label = "BOM";
-                    else if (f.codepoint === 0x00ad) label = "SHY";
-                    else if (f.codepoint === 0x2060) label = "WJ";
-
-                    return (
-                      <span
-                        key={idx}
-                        onClick={() => setSelectedFinding(f)}
-                        className={`inline-flex items-center gap-0.5 px-1 py-0.2 mx-0.5 rounded text-[10px] font-bold cursor-pointer transition-transform hover:scale-105 shadow-xs border ${badgeColor}`}
-                        title={`${f.charName} (${f.hex}) ➔ Đổi thành: '${f.suggestedReplacement || "(xóa)"}'`}
-                      >
-                        {label}
-                      </span>
-                    );
-                  })
+              /* Preview Mode */
+              <div className="w-full h-[calc(100vh-370px)] min-h-[480px] p-4 bg-zinc-50/30 overflow-y-auto article-preview leading-relaxed select-text">
+                {inputText ? (
+                  inputFormat === "html" || inputFormat === "markdown" ? (
+                    <div dangerouslySetInnerHTML={{ __html: inputRenderedHtml }} />
+                  ) : (
+                    /* Plain text segment rendering */
+                    <div className="whitespace-pre-wrap font-mono text-xs sm:text-sm">
+                      {textSegments.map((segment, idx) => {
+                        if (segment.type === "text") return <span key={idx}>{segment.content}</span>;
+                        const f = segment.finding!;
+                        let badgeColor = "bg-rose-500 text-white border-rose-600";
+                        let label = f.hex;
+                        if (f.category === "dash_homoglyph") {
+                          badgeColor = "bg-amber-600 text-white border-amber-700";
+                          label = `DASH: ${f.originalChar}`;
+                        } else if (f.category === "quote_homoglyph") {
+                          badgeColor = "bg-sky-600 text-white border-sky-700";
+                          label = `QUOTE: ${f.originalChar}`;
+                        } else if (f.category === "ellipsis") {
+                          badgeColor = "bg-indigo-600 text-white border-indigo-700";
+                          label = "ELLIPSIS: …";
+                        } else if (f.category === "fullwidth_char") {
+                          badgeColor = "bg-teal-600 text-white border-teal-700";
+                          label = `FULLWIDTH: ${f.originalChar}`;
+                        } else if (f.category === "space_homoglyph") {
+                          badgeColor = "bg-orange-500 text-white border-orange-600";
+                          label = "SPACE";
+                        } else if (f.category === "latin_confusable") {
+                          badgeColor = "bg-blue-600 text-white border-blue-700";
+                          label = `[${f.originalChar}→${f.suggestedReplacement}]`;
+                        }
+                        return (
+                          <span
+                            key={idx}
+                            onClick={() => setSelectedFinding(f)}
+                            className={`inline-flex items-center gap-0.5 px-1 py-0.2 mx-0.5 rounded text-[10px] font-bold cursor-pointer border ${badgeColor}`}
+                            title={`${f.charName} (${f.hex})`}
+                          >
+                            {label}
+                          </span>
+                        );
+                      })}
+                    </div>
+                  )
                 ) : (
-                  <span className="text-zinc-400 italic">Chưa có văn bản.</span>
+                  <span className="text-zinc-400 italic text-xs">Chưa có nội dung để xem trước.</span>
                 )}
               </div>
             )}
@@ -460,7 +392,7 @@ export function ContentStudio() {
 
           {/* Finding Details Banner */}
           {selectedFinding && (
-            <div className="p-2.5 bg-zinc-900 text-white text-xs flex items-center justify-between border-t border-zinc-800">
+            <div className="p-2 bg-zinc-900 text-white text-xs flex items-center justify-between border-t border-zinc-800 shrink-0">
               <div className="flex items-center gap-2 truncate">
                 <Info className="h-3.5 w-3.5 text-amber-400 shrink-0" />
                 <span className="truncate">
@@ -469,7 +401,7 @@ export function ContentStudio() {
               </div>
               <button
                 onClick={() => setSelectedFinding(null)}
-                className="text-zinc-400 hover:text-white px-2 py-0.5 text-[10px] rounded bg-zinc-800 shrink-0 ml-2"
+                className="text-zinc-400 hover:text-white px-1.5 py-0.5 text-[10px] rounded bg-zinc-800 shrink-0 ml-2"
               >
                 Đóng
               </button>
@@ -477,102 +409,93 @@ export function ContentStudio() {
           )}
 
           {/* Clean Action Button */}
-          <div className="p-3 bg-zinc-50 border-t border-zinc-200">
+          <div className="p-3 bg-zinc-50 border-t border-zinc-200 shrink-0">
             <button
               onClick={handleClean}
               disabled={!inputText}
-              className="w-full py-2.5 px-4 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.98] disabled:opacity-50 text-white rounded-lg font-semibold text-xs sm:text-sm transition-all shadow-sm flex items-center justify-center gap-2"
+              className="w-full py-2.5 px-3 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.98] disabled:opacity-50 text-white rounded-md font-semibold text-xs transition-all shadow-xs flex items-center justify-center gap-1.5"
             >
-              <Sparkles className="h-4 w-4 text-emerald-400" />
-              <span>Xử lý & Làm sạch Bài Viết</span>
+              <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Xử lý & Làm sạch Ký tự AI</span>
             </button>
           </div>
         </div>
 
-        {/* Right Column: Cleaned Output (Visual / Code) */}
-        <div className="bg-white rounded-xl border border-zinc-200 shadow-xs overflow-hidden flex flex-col">
+        {/* Right Column: Output Box */}
+        <div className="bg-white rounded-xl border border-zinc-200 shadow-xs overflow-hidden flex flex-col h-full">
           {/* Header */}
-          <div className="p-2.5 bg-zinc-50/80 border-b border-zinc-200 flex items-center justify-between text-xs">
-            <div className="flex items-center gap-1 bg-zinc-200/70 p-0.5 rounded-lg border border-zinc-300/60">
+          <div className="p-2.5 bg-zinc-50/80 border-b border-zinc-200 flex items-center justify-between text-xs shrink-0">
+            <div className="flex items-center gap-1.5 bg-zinc-200/70 p-0.5 rounded-md border border-zinc-300/60">
               <button
                 type="button"
-                onClick={() => setOutputViewMode("visual")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all ${
-                  outputViewMode === "visual"
-                    ? "bg-white font-bold text-zinc-950 shadow-xs"
+                onClick={() => setOutputViewMode("editor")}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs transition-all ${
+                  outputViewMode === "editor"
+                    ? "bg-white font-semibold text-zinc-900 shadow-xs"
                     : "text-zinc-600 hover:text-zinc-900"
                 }`}
               >
-                <Eye className="h-3.5 w-3.5 text-emerald-600" />
-                <span>Trực quan (Visual)</span>
+                <span>Mã kết quả ({outputFormat.toUpperCase()})</span>
               </button>
               <button
                 type="button"
-                onClick={() => setOutputViewMode("code")}
-                className={`flex items-center gap-1.5 px-2.5 py-1 rounded-md text-xs transition-all ${
-                  outputViewMode === "code"
-                    ? "bg-white font-bold text-zinc-950 shadow-xs"
+                onClick={() => setOutputViewMode("preview")}
+                className={`flex items-center gap-1 px-2 py-0.5 rounded text-xs transition-all ${
+                  outputViewMode === "preview"
+                    ? "bg-white font-semibold text-zinc-900 shadow-xs"
                     : "text-zinc-600 hover:text-zinc-900"
                 }`}
               >
-                <FileCode2 className="h-3.5 w-3.5 text-zinc-600" />
-                <span>Mã nguồn (Code)</span>
+                <Eye className="h-3 w-3 text-emerald-600" />
+                <span>Preview</span>
               </button>
             </div>
 
             {outputText && (
               <div className="flex items-center gap-1.5">
-                {/* Smart Copy for WordPress */}
                 <button
-                  onClick={handleSmartCopy}
-                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-bold transition-all shadow-xs"
-                  title="Sao chép đa định dạng: Dán vào Tab Visual hoặc Tab Code trên WordPress đều chuẩn 100%"
+                  onClick={handleCopy}
+                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white text-xs font-semibold transition-all shadow-xs"
+                  title="Sao chép chuẩn: Dán vào WordPress Tab Visual hoặc Tab Code đều nhận đúng 100%"
                 >
-                  {isCopied ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />}
-                  <span>{isCopied ? "Đã sao chép WP!" : "Sao chép cho WordPress"}</span>
+                  {isCopied ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                  <span>{isCopied ? "Đã sao chép!" : "Sao chép"}</span>
                 </button>
                 <button
                   onClick={handleDownload}
-                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-md border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-medium transition-all shadow-xs"
+                  className="inline-flex items-center gap-1 px-2 py-1 rounded-md border border-zinc-200 bg-white hover:bg-zinc-50 text-zinc-700 text-xs font-medium transition-all shadow-xs"
                 >
-                  <Download className="h-3.5 w-3.5" />
+                  <Download className="h-3 w-3" />
                   <span>Tải về</span>
                 </button>
               </div>
             )}
           </div>
 
-          {/* Output Display */}
-          <div className="relative">
-            {outputViewMode === "visual" ? (
-              <div className="w-full h-88 p-4 bg-white overflow-y-auto article-preview leading-relaxed border-0">
-                {outputText ? (
-                  <div dangerouslySetInnerHTML={{ __html: renderedOutputHtml }} />
-                ) : (
-                  <div className="h-full flex flex-col items-center justify-center text-center text-zinc-400 py-12">
-                    <FileCheck2 className="h-10 w-10 text-zinc-300 mb-2" />
-                    <p className="text-sm font-medium text-zinc-500">Kết quả bài viết đã làm sạch sẽ hiển thị tại đây</p>
-                    <p className="text-xs text-zinc-400 mt-1">Sẵn sàng sao chép và dán trực tiếp vào WordPress</p>
-                  </div>
-                )}
-              </div>
-            ) : (
+          {/* Dynamic Height Output Area */}
+          <div className="relative flex-1">
+            {outputViewMode === "editor" ? (
               <textarea
                 readOnly
                 value={outputText}
-                placeholder="Mã nguồn sau khi làm sạch sẽ hiển thị tại đây..."
-                className="w-full h-88 p-4 text-xs sm:text-sm font-mono text-zinc-900 bg-zinc-50/20 border-0 resize-none focus:outline-none placeholder:text-zinc-400 leading-relaxed"
+                placeholder="Kết quả sau khi làm sạch sẽ hiển thị tại đây..."
+                className="w-full h-[calc(100vh-370px)] min-h-[480px] p-4 text-xs sm:text-sm font-mono text-zinc-900 bg-zinc-50/20 border-0 resize-none focus:outline-none placeholder:text-zinc-400 leading-relaxed overflow-y-auto"
               />
+            ) : (
+              <div className="w-full h-[calc(100vh-370px)] min-h-[480px] p-4 bg-white overflow-y-auto article-preview leading-relaxed select-text">
+                {outputText ? (
+                  <div dangerouslySetInnerHTML={{ __html: outputRenderedHtml }} />
+                ) : (
+                  <span className="text-zinc-400 italic text-xs">Chưa có kết quả để xem trước.</span>
+                )}
+              </div>
             )}
           </div>
 
           {/* Filter Options */}
-          <div className="p-3 bg-zinc-50 border-t border-zinc-200 text-xs">
-            <span className="font-semibold text-zinc-700 block text-[11px] uppercase tracking-wider mb-2">
-              Tùy chọn chuẩn hóa Typography & Ký tự AI:
-            </span>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
+          <div className="p-3 bg-zinc-50 border-t border-zinc-200 text-xs shrink-0">
+            <div className="grid grid-cols-2 gap-2">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-600 text-[11px]">
                 <input
                   type="checkbox"
                   checked={normalizeDashes}
@@ -582,7 +505,7 @@ export function ContentStudio() {
                 <span>Dấu gạch ngang (–, — ➔ -)</span>
               </label>
 
-              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-600 text-[11px]">
                 <input
                   type="checkbox"
                   checked={normalizeQuotes}
@@ -592,7 +515,7 @@ export function ContentStudio() {
                 <span>Dấu ngoặc kép (“ ” ➔ &quot; &quot;)</span>
               </label>
 
-              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-600 text-[11px]">
                 <input
                   type="checkbox"
                   checked={normalizeEllipsis}
@@ -602,7 +525,7 @@ export function ContentStudio() {
                 <span>Dấu ba chấm (… ➔ ...)</span>
               </label>
 
-              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-600 text-[11px]">
                 <input
                   type="checkbox"
                   checked={normalizeFullwidth}
@@ -612,17 +535,17 @@ export function ContentStudio() {
                 <span>Thu hẹp chữ dãn (Ａ ➔ A)</span>
               </label>
 
-              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-600 text-[11px]">
                 <input
                   type="checkbox"
                   checked={stripInvisibles}
                   onChange={(e) => setStripInvisibles(e.target.checked)}
                   className="rounded text-zinc-900 accent-zinc-900"
                 />
-                <span>Xóa ký tự ẩn (ZWSP, BOM, Bidi)</span>
+                <span>Xóa ký tự ẩn (ZWSP, BOM)</span>
               </label>
 
-              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-600 text-[11px]">
                 <input
                   type="checkbox"
                   checked={normalizeSpaces}
@@ -632,17 +555,17 @@ export function ContentStudio() {
                 <span>Chuẩn hóa khoảng trắng lạ</span>
               </label>
 
-              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-600 text-[11px]">
                 <input
                   type="checkbox"
                   checked={replaceConfusables}
                   onChange={(e) => setReplaceConfusables(e.target.checked)}
                   className="rounded text-zinc-900 accent-zinc-900"
                 />
-                <span>Thay thế Homoglyph Cyrillic</span>
+                <span>Thay thế Homoglyph</span>
               </label>
 
-              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-700 text-[11px]">
+              <label className="flex items-center gap-1.5 cursor-pointer select-none text-zinc-600 text-[11px]">
                 <input
                   type="checkbox"
                   checked={nfkcNormalize}
