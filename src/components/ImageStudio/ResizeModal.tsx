@@ -56,6 +56,26 @@ export function ResizeModal({
     setHeight(newH);
   };
 
+  const handleApplyMaxDimension = (targetMax: number) => {
+    if (!baseWidth || !baseHeight || aspect <= 0) return;
+    let newW: number;
+    let newH: number;
+
+    if (baseWidth >= baseHeight) {
+      // Ảnh ngang hoặc ảnh vuông: gán chiều rộng = targetMax
+      newW = targetMax;
+      newH = Math.round(targetMax / aspect);
+    } else {
+      // Ảnh dọc: gán chiều cao = targetMax
+      newH = targetMax;
+      newW = Math.round(targetMax * aspect);
+    }
+
+    setWidth(newW);
+    setHeight(newH);
+    setLockAspect(true); // Khóa tỷ lệ để tránh méo vỡ
+  };
+
   const handleReset = () => {
     setWidth(baseWidth);
     setHeight(baseHeight);
@@ -161,6 +181,43 @@ export function ResizeModal({
                   {s * 100}%
                 </button>
               ))}
+            </div>
+          </div>
+
+          {/* Standard Dimensions Presets */}
+          <div className="space-y-2 pt-2 border-t border-zinc-100">
+            <div className="flex items-center justify-between">
+              <span className="text-xs font-semibold text-zinc-700 uppercase tracking-wider block">
+                Kích thước thông dụng
+              </span>
+              <span className="text-[11px] text-zinc-400">
+                {baseWidth >= baseHeight ? "Tự chỉnh theo chiều rộng" : "Tự chỉnh theo chiều cao"}
+              </span>
+            </div>
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-1.5">
+              {[2048, 1200, 1000, 890, 850].map((dim) => {
+                const targetW = baseWidth >= baseHeight ? dim : Math.round(dim * aspect);
+                const targetH = baseWidth >= baseHeight ? Math.round(dim / aspect) : dim;
+                const isSelected = width === targetW && height === targetH;
+                return (
+                  <button
+                    key={dim}
+                    type="button"
+                    onClick={() => handleApplyMaxDimension(dim)}
+                    title={`Chuyển về: ${targetW} × ${targetH}px`}
+                    className={`py-1.5 px-2 rounded-md border text-xs font-mono transition-all flex flex-col items-center justify-center ${
+                      isSelected
+                        ? "bg-zinc-900 text-white border-zinc-900 shadow-xs font-medium"
+                        : "bg-zinc-50 border-zinc-200 text-zinc-700 hover:bg-zinc-100 hover:text-zinc-900"
+                    }`}
+                  >
+                    <span className="font-semibold">{dim}</span>
+                    <span className={`text-[10px] ${isSelected ? "text-zinc-300" : "text-zinc-400"}`}>
+                      × auto
+                    </span>
+                  </button>
+                );
+              })}
             </div>
           </div>
         </div>
