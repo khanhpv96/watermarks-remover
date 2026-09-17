@@ -9,6 +9,7 @@ updated: 2026-07-12
 ## Git Workflow
 - Always create a new dedicated branch for major code changes.
 - Branch name format should follow: `feature/[task-slug]` or `fix/[bug-slug]`.
+- Do not create task markdown files in project root (keep workspace clean per user preference).
 
 ## Supported AI platforms (AG Kit)
 - AG Kit **only supports Gemini CLI and Google Antigravity**.
