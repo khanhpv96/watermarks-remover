@@ -12,6 +12,8 @@ import {
   Crop,
   Shield,
   FileEdit,
+  Camera,
+  Sliders,
 } from "lucide-react";
 import { AspectRatioType } from "./CropPresets";
 import { BeforeAfterSlider } from "./BeforeAfterSlider";
@@ -24,6 +26,7 @@ import {
   ExportFormat,
   ProcessResult,
 } from "@/lib/imageEngine";
+import { CameraProfileKey, CAMERA_PROFILES } from "@/lib/exifEngine";
 
 export function ImageStudio() {
   const [imageSrc, setImageSrc] = useState<string | null>(null);
@@ -41,9 +44,14 @@ export function ImageStudio() {
   const [isResizeModalOpen, setIsResizeModalOpen] = useState<boolean>(false);
 
   // Export settings
-  const [exportFormat, setExportFormat] = useState<ExportFormat>("image/webp");
-  const [quality, setQuality] = useState<number>(85);
+  const [exportFormat, setExportFormat] = useState<ExportFormat>("image/jpeg");
+  const [quality, setQuality] = useState<number>(90);
   const [applyPixelHygiene, setApplyPixelHygiene] = useState<boolean>(true);
+
+  // AI Cloaking settings
+  const [grainIntensity, setGrainIntensity] = useState<number>(3); // 3% default natural grain
+  const [cameraProfile, setCameraProfile] = useState<CameraProfileKey>("sony-a7iv");
+  const [microEdgeCrop, setMicroEdgeCrop] = useState<boolean>(true);
 
   // Processing & result state
   const [isProcessing, setIsProcessing] = useState<boolean>(false);
@@ -128,6 +136,9 @@ export function ImageStudio() {
           format: exportFormat,
           quality: quality / 100,
           applyPixelHygiene,
+          grainIntensity,
+          microEdgeCrop,
+          cameraProfile,
         },
         originalFile.size
       );
@@ -219,13 +230,13 @@ export function ImageStudio() {
           </div>
         </div>
       ) : (
-        /* Streamlined Clean Layout */
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-start">
+        /* Streamlined Clean Layout with Equal Height Panels */
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5 items-stretch">
           {/* Main Visual Image Card (7 Cols) */}
-          <div className="lg:col-span-7 space-y-3">
-            <div className="bg-white rounded-xl border border-zinc-200 p-3.5 shadow-xs space-y-3">
+          <div className="lg:col-span-7 flex flex-col h-full">
+            <div className="bg-white rounded-xl border border-zinc-200 p-3.5 shadow-xs flex flex-col h-full justify-between gap-3">
               {/* Header with image info */}
-              <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-zinc-100">
+              <div className="flex items-center justify-between gap-2 pb-2.5 border-b border-zinc-100 shrink-0">
                 <div className="flex items-center gap-2 text-xs truncate">
                   <span className="font-semibold text-zinc-900 truncate max-w-[200px]">
                     {originalFile?.name}
@@ -246,15 +257,15 @@ export function ImageStudio() {
                 </button>
               </div>
 
-              {/* Image Preview / Slider */}
-              <div className="relative w-full rounded-lg overflow-hidden border border-zinc-200 bg-zinc-100">
+              {/* Image Preview / Slider (Stretches to fill available height) */}
+              <div className="relative w-full flex-1 min-h-[380px] rounded-lg overflow-hidden border border-zinc-200 bg-zinc-100 flex items-center justify-center">
                 {processedResult ? (
                   <BeforeAfterSlider
                     originalUrl={imageSrc}
                     processedUrl={processedResult.dataUrl}
                   />
                 ) : (
-                  <div className="w-full h-[300px] sm:h-[360px] flex items-center justify-center p-2">
+                  <div className="w-full h-full flex items-center justify-center p-3">
                     <img
                       src={imageSrc}
                       alt="Preview"
@@ -265,7 +276,7 @@ export function ImageStudio() {
               </div>
 
               {/* Action Buttons to trigger Crop and Resize Modals */}
-              <div className="flex items-center justify-between gap-2 pt-1">
+              <div className="flex items-center justify-between gap-2 pt-1 shrink-0">
                 <div className="flex items-center gap-2">
                   <button
                     type="button"
@@ -312,9 +323,9 @@ export function ImageStudio() {
           </div>
 
           {/* Format & Compression Panel (5 Cols) */}
-          <div className="lg:col-span-5 space-y-3">
-            <div className="bg-white rounded-xl border border-zinc-200 p-4 shadow-xs space-y-3.5">
-              <span className="text-xs font-semibold text-zinc-800 uppercase tracking-wider block">
+          <div className="lg:col-span-5 flex flex-col h-full">
+            <div className="bg-white rounded-xl border border-zinc-200 p-4 shadow-xs flex flex-col h-full justify-between gap-3">
+              <span className="text-xs font-semibold text-zinc-800 uppercase tracking-wider block shrink-0">
                 Định dạng & Nén
               </span>
 
@@ -382,63 +393,169 @@ export function ImageStudio() {
                 </p>
               </div>
 
-              {/* AI Watermark & Hygiene toggles */}
-              <div className="pt-2 border-t border-zinc-100 space-y-1.5 text-xs">
-                <div className="flex items-center gap-1.5 text-emerald-700 font-medium">
-                  <Shield className="h-3.5 w-3.5" />
-                  <span>Tự động xóa 100% C2PA & Metadata</span>
+              {/* AI Cloaking & Anti-Detection Studio */}
+              <div className="pt-2 border-t border-zinc-100 space-y-2.5 text-xs">
+                <div className="flex items-center justify-between">
+                  <span className="font-semibold text-zinc-900 flex items-center gap-1.5">
+                    <Shield className="h-3.5 w-3.5 text-emerald-600" />
+                    <span>Khử Dấu Vết AI (AI Cloaking)</span>
+                  </span>
+                  <span className="text-[10px] text-emerald-700 bg-emerald-50 border border-emerald-200 px-1.5 py-0.5 rounded font-medium">
+                    Purge C2PA
+                  </span>
                 </div>
 
-                <label className="flex items-center gap-2 cursor-pointer select-none text-zinc-600">
-                  <input
-                    type="checkbox"
-                    checked={applyPixelHygiene}
-                    onChange={(e) => setApplyPixelHygiene(e.target.checked)}
-                    className="rounded text-zinc-900 accent-zinc-900"
-                  />
-                  <span>Pixel Jitter (Phá vỡ Steganography ẩn)</span>
-                </label>
-              </div>
-
-              {/* Process Action Button */}
-              <button
-                type="button"
-                onClick={handleProcess}
-                disabled={isProcessing}
-                className="w-full py-2 px-4 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.98] disabled:opacity-50 text-white rounded-md font-medium text-xs transition-all shadow-xs flex items-center justify-center gap-1.5"
-              >
-                {isProcessing ? (
-                  <>
-                    <RotateCw className="h-3.5 w-3.5 animate-spin" />
-                    <span>Đang nén...</span>
-                  </>
-                ) : (
-                  <>
-                    <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
-                    <span>Xử lý & Nén Ảnh</span>
-                  </>
-                )}
-              </button>
-
-              {/* Results Stats & Download Box */}
-              {processedResult && (
-                <div className="bg-zinc-50 rounded-lg p-3 border border-zinc-200/80 space-y-2 text-xs">
-                  <div className="flex items-center justify-between text-zinc-600">
-                    <span>Trước: <strong className="font-mono text-zinc-800">{formatBytes(processedResult.originalSize)}</strong></span>
-                    <span>Sau: <strong className="font-mono text-zinc-900">{formatBytes(processedResult.newSize)}</strong></span>
-                    <span className="font-bold text-emerald-700">-{processedResult.savedPercentage}%</span>
+                {/* 1. Fake Camera EXIF Profile */}
+                <div className="space-y-1.5 bg-zinc-50 p-2.5 rounded-lg border border-zinc-200/70">
+                  <div className="flex items-center justify-between">
+                    <label className="flex items-center gap-1 text-[11px] font-medium text-zinc-700">
+                      <Camera className="h-3 w-3 text-zinc-500" />
+                      <span>Giả lập máy ảnh thực (EXIF):</span>
+                    </label>
+                    <span className="text-[10px] font-mono text-zinc-400">
+                      {CAMERA_PROFILES[cameraProfile]?.badge}
+                    </span>
                   </div>
 
-                  <button
-                    type="button"
-                    onClick={handleDownload}
-                    className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white rounded-md font-medium text-xs transition-all shadow-xs flex items-center justify-center gap-1.5"
+                  <select
+                    value={cameraProfile}
+                    onChange={(e) => setCameraProfile(e.target.value as CameraProfileKey)}
+                    className="w-full text-xs bg-white text-zinc-800 px-2 py-1.5 rounded border border-zinc-200 focus:outline-none focus:ring-1 focus:ring-zinc-900"
                   >
-                    <Download className="h-3.5 w-3.5" />
-                    <span>Tải về ({previewCleanName})</span>
-                  </button>
+                    {(Object.keys(CAMERA_PROFILES) as CameraProfileKey[]).map((key) => (
+                      <option key={key} value={key}>
+                        {CAMERA_PROFILES[key].name}
+                      </option>
+                    ))}
+                  </select>
+
+                  {cameraProfile !== "none" && exportFormat !== "image/jpeg" && (
+                    <div className="flex items-center justify-between pt-0.5 text-[10px] text-amber-700">
+                      <span>Khuyên dùng JPG để nhúng EXIF</span>
+                      <button
+                        type="button"
+                        onClick={() => setExportFormat("image/jpeg")}
+                        className="underline font-semibold hover:text-amber-900 cursor-pointer"
+                      >
+                        Chuyển sang JPG
+                      </button>
+                    </div>
+                  )}
                 </div>
-              )}
+
+                {/* 2. Analog Film Grain / Sensor Noise */}
+                <div className="space-y-1.5 bg-zinc-50 p-2.5 rounded-lg border border-zinc-200/70">
+                  <div className="flex items-center justify-between text-[11px]">
+                    <span className="font-medium text-zinc-700 flex items-center gap-1">
+                      <Sliders className="h-3 w-3 text-zinc-500" />
+                      <span>Hạt nhiễu cảm biến (Grain):</span>
+                    </span>
+                    <span className="font-mono font-semibold text-zinc-900">
+                      {grainIntensity === 0 ? "Tắt" : `${grainIntensity}%`}
+                    </span>
+                  </div>
+
+                  <input
+                    type="range"
+                    min={0}
+                    max={15}
+                    step={1}
+                    value={grainIntensity}
+                    onChange={(e) => setGrainIntensity(parseInt(e.target.value) || 0)}
+                    className="w-full accent-zinc-900 h-1.5 bg-zinc-200 rounded-lg cursor-pointer"
+                  />
+
+                  <div className="flex items-center justify-between pt-0.5">
+                    <span className="text-[10px] text-zinc-400">Khử sáp nhựa & phá SynthID</span>
+                    <div className="flex gap-1">
+                      {[
+                        { label: "0%", val: 0 },
+                        { label: "Tự nhiên 3%", val: 3 },
+                        { label: "Máy phim 7%", val: 7 },
+                      ].map((preset) => (
+                        <button
+                          key={preset.val}
+                          type="button"
+                          onClick={() => setGrainIntensity(preset.val)}
+                          className={`text-[10px] px-1.5 py-0.5 rounded border transition-colors ${
+                            grainIntensity === preset.val
+                              ? "bg-zinc-900 text-white border-zinc-900 font-medium"
+                              : "bg-white text-zinc-600 border-zinc-200 hover:bg-zinc-100"
+                          }`}
+                        >
+                          {preset.label}
+                        </button>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+
+                {/* 3. Toggles: Micro Edge Crop & Pixel Jitter */}
+                <div className="space-y-1 pt-0.5">
+                  <label className="flex items-center gap-2 cursor-pointer select-none text-zinc-600">
+                    <input
+                      type="checkbox"
+                      checked={microEdgeCrop}
+                      onChange={(e) => setMicroEdgeCrop(e.target.checked)}
+                      className="rounded text-zinc-900 accent-zinc-900"
+                    />
+                    <span className="text-[11px]">Cắt viền 1-2px (Làm lệch lưới watermark ẩn)</span>
+                  </label>
+
+                  <label className="flex items-center gap-2 cursor-pointer select-none text-zinc-600">
+                    <input
+                      type="checkbox"
+                      checked={applyPixelHygiene}
+                      onChange={(e) => setApplyPixelHygiene(e.target.checked)}
+                      className="rounded text-zinc-900 accent-zinc-900"
+                    />
+                    <span className="text-[11px]">Pixel Jitter LSB (Xáo trộn khóa steganography)</span>
+                  </label>
+                </div>
+              </div>
+
+              {/* Actions & Results Container (Sticky to bottom) */}
+              <div className="mt-auto pt-2 space-y-2">
+                {/* Process Action Button */}
+                <button
+                  type="button"
+                  onClick={handleProcess}
+                  disabled={isProcessing}
+                  className="w-full py-2 px-4 bg-zinc-900 hover:bg-zinc-800 active:scale-[0.98] disabled:opacity-50 text-white rounded-md font-medium text-xs transition-all shadow-xs flex items-center justify-center gap-1.5"
+                >
+                  {isProcessing ? (
+                    <>
+                      <RotateCw className="h-3.5 w-3.5 animate-spin" />
+                      <span>Đang nén...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="h-3.5 w-3.5 text-emerald-400" />
+                      <span>Xử lý & Nén Ảnh</span>
+                    </>
+                  )}
+                </button>
+
+                {/* Results Stats & Download Box */}
+                {processedResult && (
+                  <div className="bg-zinc-50 rounded-lg p-3 border border-zinc-200/80 space-y-2 text-xs">
+                    <div className="flex items-center justify-between text-zinc-600">
+                      <span>Trước: <strong className="font-mono text-zinc-800">{formatBytes(processedResult.originalSize)}</strong></span>
+                      <span>Sau: <strong className="font-mono text-zinc-900">{formatBytes(processedResult.newSize)}</strong></span>
+                      <span className="font-bold text-emerald-700">-{processedResult.savedPercentage}%</span>
+                    </div>
+
+                    <button
+                      type="button"
+                      onClick={handleDownload}
+                      className="w-full py-2 px-3 bg-emerald-600 hover:bg-emerald-700 active:scale-[0.98] text-white rounded-md font-medium text-xs transition-all shadow-xs flex items-center justify-center gap-1.5"
+                    >
+                      <Download className="h-3.5 w-3.5" />
+                      <span>Tải về ({previewCleanName})</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
 

@@ -51,7 +51,7 @@ export function BeforeAfterSlider({
       onMouseLeave={() => setIsDragging(false)}
       onMouseMove={handleMouseMove}
       onTouchMove={handleTouchMove}
-      className="relative w-full h-[380px] sm:h-[480px] rounded-xl overflow-hidden select-none border border-zinc-200 bg-zinc-100 cursor-ew-resize shadow-sm"
+      className="relative w-full h-full min-h-[360px] sm:min-h-[420px] rounded-xl overflow-hidden select-none border border-zinc-200 bg-zinc-100 cursor-ew-resize shadow-sm"
     >
       {/* Background Image: Processed (Clean) */}
       <img

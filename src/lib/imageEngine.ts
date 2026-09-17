@@ -3,6 +3,8 @@
  * Provides interactive Crop, Resize, AI Provenance Metadata (C2PA/EXIF) Purge, and AVIF/WebP/PNG/JPG compression.
  */
 
+import { CameraProfileKey, injectExifToJpegBlob } from "./exifEngine";
+
 export type ExportFormat = "image/avif" | "image/webp" | "image/png" | "image/jpeg";
 
 export interface CropArea {
@@ -19,6 +21,9 @@ export interface ProcessImageOptions {
   format: ExportFormat;
   quality: number; // 0.01 to 1.00
   applyPixelHygiene?: boolean; // Subtle dithering to disrupt steganographic pixel watermarks
+  grainIntensity?: number; // 0 to 15: Analog sensor grain to remove AI plastic look & break SynthID
+  microEdgeCrop?: boolean; // Auto shave 1-2px border to break steganographic grid alignment
+  cameraProfile?: CameraProfileKey; // Injects realistic camera metadata into JPEG
 }
 
 export interface ProcessResult {
@@ -61,10 +66,20 @@ export async function processImage(
   const img = typeof imageSource === "string" ? await createImage(imageSource) : imageSource;
 
   // 1. Calculate Crop Source Coordinates
-  const cropX = options.cropArea?.x ?? 0;
-  const cropY = options.cropArea?.y ?? 0;
-  const cropW = options.cropArea?.width ?? img.naturalWidth;
-  const cropH = options.cropArea?.height ?? img.naturalHeight;
+  let cropX = options.cropArea?.x ?? 0;
+  let cropY = options.cropArea?.y ?? 0;
+  let cropW = options.cropArea?.width ?? img.naturalWidth;
+  let cropH = options.cropArea?.height ?? img.naturalHeight;
+
+  // Micro-Edge Crop: Cạo nhẹ 1-2px mép ảnh để làm lệch hệ tọa độ lưới pixel đối chiếu
+  if (options.microEdgeCrop) {
+    const shaveX = Math.min(2, Math.floor(cropW * 0.005));
+    const shaveY = Math.min(2, Math.floor(cropH * 0.005));
+    cropX += shaveX;
+    cropY += shaveY;
+    cropW = Math.max(10, cropW - shaveX * 2);
+    cropH = Math.max(10, cropH - shaveY * 2);
+  }
 
   // 2. Calculate Final Output Dimensions
   const finalWidth = Math.round(options.targetWidth && options.targetWidth > 0 ? options.targetWidth : cropW);
@@ -93,7 +108,33 @@ export async function processImage(
   // Draw cropped and scaled image onto clean canvas
   ctx.drawImage(img, cropX, cropY, cropW, cropH, 0, 0, finalWidth, finalHeight);
 
-  // 4. Optional Pixel Hygiene (Disrupt imperceptible neural watermarks / SynthID pixel shifts)
+  // 4. Analog Film Grain / Sensor Noise (Luminance-aware, khử chất bóng nhựa AI & bẻ gãy SynthID)
+  if (options.grainIntensity && options.grainIntensity > 0) {
+    try {
+      const imgData = ctx.getImageData(0, 0, finalWidth, finalHeight);
+      const data = imgData.data;
+      const intensity = Math.min(15, Math.max(0, options.grainIntensity));
+      const maxNoise = (intensity / 100) * 255 * 0.32;
+
+      for (let i = 0; i < data.length; i += 4) {
+        if (data[i + 3] > 0) {
+          // Midtone-weighted optical grain curve
+          const lum = 0.299 * data[i] + 0.587 * data[i + 1] + 0.114 * data[i + 2];
+          const weight = Math.sin((Math.PI * lum) / 255);
+          const noise = (Math.random() - 0.5) * 2 * maxNoise * (0.4 + 0.6 * weight);
+
+          data[i] = Math.min(255, Math.max(0, data[i] + noise));
+          data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + noise));
+          data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + noise));
+        }
+      }
+      ctx.putImageData(imgData, 0, 0);
+    } catch {
+      // Ignore if canvas is tainted
+    }
+  }
+
+  // 5. Optional Pixel Hygiene (Disrupt imperceptible neural watermarks / SynthID pixel shifts)
   if (options.applyPixelHygiene) {
     try {
       const imgData = ctx.getImageData(0, 0, finalWidth, finalHeight);
@@ -113,11 +154,11 @@ export async function processImage(
     }
   }
 
-  // 5. Convert to Blob
+  // 6. Convert to Blob & Inject EXIF if applicable
   return new Promise((resolve, reject) => {
     canvas.toBlob(
-      (blob) => {
-        if (!blob) {
+      async (rawBlob) => {
+        if (!rawBlob) {
           // Fallback if browser doesn't support target format (e.g. AVIF in older browser -> WebP)
           canvas.toBlob(
             (fallbackBlob) => {
@@ -144,16 +185,26 @@ export async function processImage(
           return;
         }
 
-        const dataUrl = URL.createObjectURL(blob);
-        const saved = originalFileSize > 0 ? Math.max(0, Math.round(((originalFileSize - blob.size) / originalFileSize) * 100)) : 0;
+        // If format is JPEG and camera profile chosen, inject realistic EXIF
+        let finalBlob = rawBlob;
+        if (options.format === "image/jpeg" && options.cameraProfile && options.cameraProfile !== "none") {
+          try {
+            finalBlob = await injectExifToJpegBlob(rawBlob, options.cameraProfile, finalWidth, finalHeight);
+          } catch (err) {
+            console.warn("EXIF injection warning:", err);
+          }
+        }
+
+        const dataUrl = URL.createObjectURL(finalBlob);
+        const saved = originalFileSize > 0 ? Math.max(0, Math.round(((originalFileSize - finalBlob.size) / originalFileSize) * 100)) : 0;
 
         resolve({
-          blob,
+          blob: finalBlob,
           dataUrl,
           width: finalWidth,
           height: finalHeight,
           originalSize: originalFileSize,
-          newSize: blob.size,
+          newSize: finalBlob.size,
           savedPercentage: saved,
           format: options.format,
         });
